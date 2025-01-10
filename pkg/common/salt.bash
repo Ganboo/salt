@@ -251,42 +251,63 @@ _saltcall(){
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    # Handle redirection operators like >, >>, |
+    if [[ "$prev" == ">" || "$prev" == ">>" || "$prev" == "|" ]]; then
+        # Ensure both files and directory completion is handled correctly
+        COMPREPLY=($(compgen -f -- "$cur"))
+
+        # Check matches and add a trailing '/' for directories
+        for i in "${!COMPREPLY[@]}"; do
+            if [ -d "${COMPREPLY[i]}" ]; then
+                COMPREPLY[i]+="/"
+            fi
+        done
+
+        # Prevent adding a space automatically to allow further completion
+        compopt -o nospace
+
+        return 0
+    fi
+
     opts="-h --help -d --doc --documentation --version --versions-report \
           -m --module-dirs= -g --grains --return= --local -c --config-dir= -l --log-level= \
           --out=pprint --out=yaml --out=overstatestage --out=json --out=raw \
           --out=highstate --out=key --out=txt --no-color --out-indent= "
+
     if [ ${COMP_CWORD} -gt 2 ]; then
         pprev="${COMP_WORDS[COMP_CWORD-2]}"
     fi
     if [ ${COMP_CWORD} -gt 3 ]; then
         ppprev="${COMP_WORDS[COMP_CWORD-3]}"
     fi
-    if [[ "${cur}" == -* ]] ; then
-        COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+
+    if [[ "${cur}" == -* ]]; then
+        COMPREPLY=($(compgen -W "${opts}" -- "${cur}"))
         return 0
     fi
 
-    if [ "${cur}" = "=" ] && [[ ${prev} == --* ]]; then
+    if [ "${cur}" = "=" ] && [[ "${prev}" == --* ]]; then
        cur=""
     fi
-    if [ "${prev}" = "=" ] && [[ ${pprev} == --* ]]; then
+    if [ "${prev}" = "=" ] && [[ "${pprev}" == --* ]]; then
        prev="${pprev}"
     fi
 
     case ${prev} in
         -m|--module-dirs)
-                COMPREPLY=( $(compgen -d ${cur} ))
+                COMPREPLY=($(compgen -d "${cur}"))
                 return 0
                 ;;
-        -l|--log-level)
-                COMPREPLY=( $(compgen -W "info none garbage trace warning error debug" -- ${cur}))
+       -l|--log-level)
+                COMPREPLY=($(compgen -W "info none garbage trace warning error debug" -- "${cur}"))
                 return 0
-                ;;
+               ;;
         -g|grains)
                 return 0
                 ;;
         salt-call)
-                COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+                COMPREPLY=($(compgen -W "${opts}" -- "${cur}"))
                 return 0
                 ;;
     esac
@@ -294,9 +315,9 @@ _saltcall(){
     _salt_coms=$(_salt_get_coms local)
 
     # If there are still dots in the suggestion, do not append space
-    grep "^${cur}.*\." "${_salt_coms}" &>/dev/null && compopt -o nospace
+    grep "^${cur}.*\." <<<"${_salt_coms}" &>/dev/null && compopt -o nospace
 
-    COMPREPLY=( $(compgen -W "${opts} ${_salt_coms}" -- ${cur} ))
+    COMPREPLY=($(compgen -W "${opts} ${_salt_coms}" -- "${cur}"))
     return 0
 }
 
